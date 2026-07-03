@@ -85,6 +85,7 @@ pnpm typecheck
 - Inboxes expire after 60 minutes (configurable on self-hosted deployments).
 - Message bodies are stored in memory on a single server — not durable across restarts.
 - Anyone who knows an inbox address can read its messages. Use only for automated testing, not personal mail.
+- **Fair use limits** — per-IP rate limits protect the shared server (inbox creation and general API traffic). When exceeded, the API returns `429` with a `Retry-After` header; `qack-mail` prints a retry hint and exits `1`. Self-hosters can tune or disable limits via env vars (see [apps/server/README.md](apps/server/README.md)).
 
 ## Self-hosting
 

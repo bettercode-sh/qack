@@ -10,31 +10,55 @@ import type {
 export class ApiError extends Error {
   readonly status: number;
   readonly body: ApiErrorBody;
+  readonly retryAfterSec?: number;
 
-  constructor(status: number, body: ApiErrorBody) {
+  constructor(status: number, body: ApiErrorBody, retryAfterSec?: number) {
     super(body.error.message);
     this.name = "ApiError";
     this.status = status;
     this.body = body;
+    if (retryAfterSec !== undefined) {
+      this.retryAfterSec = retryAfterSec;
+    }
   }
 }
 
+function parseRetryAfter(response: Response): number | undefined {
+  const header = response.headers.get("Retry-After");
+  if (!header) {
+    return undefined;
+  }
+
+  const seconds = Number.parseInt(header, 10);
+  if (!Number.isFinite(seconds)) {
+    return undefined;
+  }
+
+  return seconds;
+}
+
 async function parseErrorResponse(response: Response): Promise<ApiError> {
+  const retryAfterSec = parseRetryAfter(response);
+
   try {
     const body = (await response.json()) as ApiErrorBody;
     if (body?.error?.code && body?.error?.message) {
-      return new ApiError(response.status, body);
+      return new ApiError(response.status, body, retryAfterSec);
     }
   } catch {
     // fall through
   }
 
-  return new ApiError(response.status, {
-    error: {
-      code: "HTTP_ERROR",
-      message: response.statusText || `HTTP ${response.status}`,
+  return new ApiError(
+    response.status,
+    {
+      error: {
+        code: "HTTP_ERROR",
+        message: response.statusText || `HTTP ${response.status}`,
+      },
     },
-  });
+    retryAfterSec,
+  );
 }
 
 async function parseJsonResponse<T>(response: Response): Promise<T> {

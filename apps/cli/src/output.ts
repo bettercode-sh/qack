@@ -39,6 +39,16 @@ export function exitWithError(message: string, code = 1): never {
 
 export function handleCommandError(error: unknown): never {
   if (error instanceof ApiError) {
+    if (error.status === 429) {
+      const retryHint =
+        error.retryAfterSec !== undefined
+          ? ` Retry in ${error.retryAfterSec} seconds.`
+          : "";
+      exitWithError(
+        `Rate limited by the server (${error.body.error.code}).${retryHint}`,
+      );
+    }
+
     exitWithError(`${error.body.error.code}: ${error.body.error.message}`);
   }
 

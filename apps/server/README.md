@@ -30,6 +30,11 @@ swaks --to inbox@qack.dev --from sender@example.com \
 | `MAIL_DOMAIN` | `qack.dev` | Domain accepted for inbound mail |
 | `INBOX_TTL_MINUTES` | `60` | Inbox lifetime before automatic expiry |
 | `MAX_MESSAGE_BYTES` | `5242880` | Max raw message size (5 MB) |
+| `RATE_LIMIT_CREATE_PER_MINUTE` | `10` | Per-IP inbox creations per minute (`0` disables) |
+| `RATE_LIMIT_API_PER_MINUTE` | `120` | Per-IP `/v1` requests per minute (`0` disables) |
+| `MAX_INBOXES` | `10000` | Max live inboxes across the server (`0` disables) |
+| `MAX_MESSAGES_PER_INBOX` | `50` | Max messages retained per inbox (`0` disables) |
+| `MAX_TOTAL_MESSAGE_BYTES` | `268435456` | Global budget for stored raw message bytes (256 MB; `0` disables) |
 
 ## Fly.io deployment
 

@@ -17,11 +17,15 @@ export class StoreError extends Error {
   }
 }
 
+interface StoredMessage extends Message {
+  byteSize: number;
+}
+
 interface InboxRecord {
   address: string;
   createdAt: Date;
   expiresAt: Date;
-  messages: Message[];
+  messages: StoredMessage[];
 }
 
 function toInbox(record: InboxRecord): Inbox {
@@ -62,6 +66,7 @@ export class Store {
   private readonly inboxes = new Map<string, InboxRecord>();
   private readonly events = new EventEmitter();
   private readonly sweeper: NodeJS.Timeout;
+  private totalMessageBytes = 0;
 
   constructor(private readonly config: ServerConfig) {
     this.events.setMaxListeners(0);
@@ -84,6 +89,10 @@ export class Store {
       throw new StoreError("CONFLICT", `Inbox already exists: ${address}`);
     }
 
+    if (this.config.maxInboxes > 0 && this.inboxes.size >= this.config.maxInboxes) {
+      throw new StoreError("CAPACITY", "Server is at inbox capacity, try again later");
+    }
+
     const now = new Date();
     const record: InboxRecord = {
       address,
@@ -103,7 +112,14 @@ export class Store {
 
   deleteInbox(address: string): boolean {
     const normalized = normalizeAddress(address);
-    return this.inboxes.delete(normalized);
+    const record = this.inboxes.get(normalized);
+    if (!record) {
+      return false;
+    }
+
+    this.releaseInboxMessages(record);
+    this.inboxes.delete(normalized);
+    return true;
   }
 
   addMessage(address: string, message: Message): void {
@@ -112,8 +128,40 @@ export class Store {
       throw new StoreError("NOT_FOUND", `Inbox not found: ${address}`);
     }
 
-    record.messages.push(message);
+    const byteSize = Buffer.byteLength(message.raw);
+    const { maxMessagesPerInbox, maxTotalMessageBytes } = this.config;
+
+    if (maxMessagesPerInbox > 0 && record.messages.length >= maxMessagesPerInbox) {
+      throw new StoreError("INBOX_FULL", `Inbox is full: ${address}`);
+    }
+
+    if (maxTotalMessageBytes > 0 && this.totalMessageBytes + byteSize > maxTotalMessageBytes) {
+      throw new StoreError("INBOX_FULL", "Server message storage is full");
+    }
+
+    const stored: StoredMessage = { ...message, byteSize };
+    record.messages.push(stored);
+    this.totalMessageBytes += byteSize;
     this.events.emit(normalizeAddress(address), message);
+  }
+
+  canReceive(address: string): boolean {
+    const record = this.getLiveRecord(address);
+    if (!record) {
+      return false;
+    }
+
+    const { maxMessagesPerInbox, maxTotalMessageBytes } = this.config;
+
+    if (maxMessagesPerInbox > 0 && record.messages.length >= maxMessagesPerInbox) {
+      return false;
+    }
+
+    if (maxTotalMessageBytes > 0 && this.totalMessageBytes >= maxTotalMessageBytes) {
+      return false;
+    }
+
+    return true;
   }
 
   listMessages(address: string): MessageSummary[] {
@@ -215,6 +263,7 @@ export class Store {
     }
 
     if (record.expiresAt <= new Date()) {
+      this.releaseInboxMessages(record);
       this.inboxes.delete(normalized);
       return null;
     }
@@ -222,10 +271,17 @@ export class Store {
     return record;
   }
 
+  private releaseInboxMessages(record: InboxRecord): void {
+    for (const message of record.messages) {
+      this.totalMessageBytes -= message.byteSize;
+    }
+  }
+
   private sweepExpired(): void {
     const now = new Date();
     for (const [address, record] of this.inboxes) {
       if (record.expiresAt <= now) {
+        this.releaseInboxMessages(record);
         this.inboxes.delete(address);
         this.events.removeAllListeners(address);
       }

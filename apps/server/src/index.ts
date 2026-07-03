@@ -1,12 +1,14 @@
 import { serve } from "@hono/node-server";
 import { loadConfig } from "./config.js";
 import { createApiApp } from "./api.js";
+import { RateLimiter } from "./rate-limit.js";
 import { createSmtpServer } from "./smtp.js";
 import { Store } from "./store.js";
 
 const config = loadConfig();
 const store = new Store(config);
-const apiApp = createApiApp(store);
+const limiter = new RateLimiter(config);
+const apiApp = createApiApp(store, limiter);
 const smtpServer = createSmtpServer(config, store);
 
 const httpServer = serve(
@@ -27,6 +29,7 @@ function shutdown(signal: string): void {
   console.error(`[server] received ${signal}, shutting down`);
 
   store.stop();
+  limiter.stop();
 
   httpServer.close(() => {
     smtpServer.close(() => {

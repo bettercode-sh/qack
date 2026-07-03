@@ -7,12 +7,18 @@ import type {
   Message,
   WaitForMessageResponse,
 } from "@qack/shared";
+import { rateLimitMiddleware, type RateLimiter } from "./rate-limit.js";
 import { Store, StoreError } from "./store.js";
 
-function errorResponse(code: string, message: string, status: number): Response {
+function errorResponse(
+  code: string,
+  message: string,
+  status: number,
+  extraHeaders?: Record<string, string>,
+): Response {
   return new Response(JSON.stringify({ error: { code, message } }), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
@@ -31,10 +37,12 @@ function decodeAddressParam(address: string): string {
   }
 }
 
-export function createApiApp(store: Store): Hono {
+export function createApiApp(store: Store, limiter: RateLimiter): Hono {
   const app = new Hono();
 
   app.get("/healthz", (c) => c.text("ok", 200));
+
+  app.use("/v1/*", rateLimitMiddleware(limiter));
 
   app.post("/v1/inboxes", async (c) => {
     let body: CreateInboxRequest = {};
@@ -60,6 +68,9 @@ export function createApiApp(store: Store): Hono {
         }
         if (error.code === "INVALID_NAME") {
           return errorResponse(error.code, error.message, 422);
+        }
+        if (error.code === "CAPACITY") {
+          return errorResponse(error.code, error.message, 429, { "Retry-After": "60" });
         }
       }
       throw error;

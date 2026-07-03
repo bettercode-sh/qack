@@ -5,6 +5,7 @@ import { SMTPServer, type SMTPServerAddress, type SMTPServerSession } from "smtp
 import type { Message } from "@qack/shared";
 import type { ServerConfig } from "./config.js";
 import type { Store } from "./store.js";
+import { StoreError } from "./store.js";
 
 function normalizeAddress(address: string): string {
   return address.trim().toLowerCase();
@@ -94,6 +95,16 @@ export function createSmtpServer(config: ServerConfig, store: Store): SMTPServer
         return;
       }
 
+      if (!store.canReceive(fullAddress)) {
+        const error = new Error(`Mailbox full: ${recipient}`) as Error & {
+          responseCode?: number;
+        };
+        error.responseCode = 452;
+        console.error(`[smtp] rejected rcpt ${recipient}: inbox full`);
+        callback(error);
+        return;
+      }
+
       callback();
     },
     onData(
@@ -147,6 +158,13 @@ export function createSmtpServer(config: ServerConfig, store: Store): SMTPServer
           );
           callback();
         } catch (error) {
+          if (error instanceof StoreError && error.code === "INBOX_FULL") {
+            const smtpError = new Error(error.message) as Error & { responseCode?: number };
+            smtpError.responseCode = 452;
+            console.error("[smtp] rejected message: inbox full");
+            callback(smtpError);
+            return;
+          }
           console.error("[smtp] failed to parse message:", error);
           callback(error instanceof Error ? error : new Error(String(error)));
         }
