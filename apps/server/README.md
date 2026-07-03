@@ -60,8 +60,8 @@ SMTP is exposed on external port 25 and forwarded to internal port `2525` (see `
 ### Verify production
 
 ```bash
-ADDR=$(npx qack create)
-npx qack wait "$ADDR" --timeout 300 &
+ADDR=$(npx qack-mail create)
+npx qack-mail wait "$ADDR" --timeout 300 &
 # Send a test email from Gmail to $ADDR, then confirm wait unblocks
 ```
 

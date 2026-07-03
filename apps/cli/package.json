@@ -1,10 +1,10 @@
 {
-  "name": "qack",
+  "name": "qack-mail",
   "version": "0.1.0",
   "description": "Temporary email for CI/CD pipelines",
   "type": "module",
   "bin": {
-    "qack": "./dist/index.js"
+    "qack-mail": "./dist/index.js"
   },
   "files": [
     "dist"

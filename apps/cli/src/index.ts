@@ -16,7 +16,7 @@ const packageJson = JSON.parse(
 const program = new Command();
 
 program
-  .name("qack")
+  .name("qack-mail")
   .description("Temporary email for CI/CD pipelines")
   .version(packageJson.version)
   .option(

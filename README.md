@@ -6,27 +6,27 @@ Temporary email testing for CI/CD pipelines. Create a throwaway inbox like `f3k9
 
 ```bash
 # Create an inbox (prints address to stdout)
-ADDR=$(npx qack create)
+ADDR=$(npx qack-mail create)
 
 # Wait for the next message (blocks up to 5 minutes by default)
-npx qack wait "$ADDR"
+npx qack-mail wait "$ADDR"
 
 # Or extract an OTP in CI
-OTP=$(npx qack wait "$ADDR" --timeout 120 | grep -oE '[0-9]{6}')
+OTP=$(npx qack-mail wait "$ADDR" --timeout 120 | grep -oE '[0-9]{6}')
 ```
 
 ### CI example (GitHub Actions)
 
 ```yaml
 - name: Create test inbox
-  run: echo "TEST_EMAIL=$(npx qack create)" >> $GITHUB_ENV
+  run: echo "TEST_EMAIL=$(npx qack-mail create)" >> $GITHUB_ENV
 
 - name: Trigger signup
   run: curl -X POST https://myapp.com/signup -d "email=${{ env.TEST_EMAIL }}"
 
 - name: Wait for verification email and extract OTP
   run: |
-    BODY=$(npx qack wait "${{ env.TEST_EMAIL }}" --timeout 300)
+    BODY=$(npx qack-mail wait "${{ env.TEST_EMAIL }}" --timeout 300)
     OTP=$(echo "$BODY" | grep -oE '[0-9]{6}' | head -1)
     echo "OTP=$OTP" >> $GITHUB_ENV
 ```
@@ -37,11 +37,11 @@ All commands support `--json` for structured output. Errors go to stderr; machin
 
 | Command | Description |
 |---------|-------------|
-| `qack create [--name <name>]` | Create an inbox (default: random address) |
-| `qack list <address>` | List message summaries |
-| `qack get <address> <id> [--text\|--html\|--raw]` | Fetch a full message |
-| `qack wait <address> [--timeout <sec>] [--since <id>]` | Block until a new message arrives |
-| `qack delete <address>` | Delete an inbox |
+| `qack-mail create [--name <name>]` | Create an inbox (default: random address) |
+| `qack-mail list <address>` | List message summaries |
+| `qack-mail get <address> <id> [--text\|--html\|--raw]` | Fetch a full message |
+| `qack-mail wait <address> [--timeout <sec>] [--since <id>]` | Block until a new message arrives |
+| `qack-mail delete <address>` | Delete an inbox |
 
 Exit codes: `0` success, `1` error, `2` timeout (`wait` only).
 
@@ -57,12 +57,12 @@ For local development against a running server:
 ```bash
 export QACK_API_URL=http://localhost:8080
 pnpm --filter @qack/server dev   # terminal 1
-pnpm --filter qack build && node apps/cli/dist/index.js create
+pnpm --filter qack-mail build && node apps/cli/dist/index.js create
 ```
 
 ## Monorepo layout
 
-- **`apps/cli`** (`qack`) — npm-published CLI
+- **`apps/cli`** (`qack-mail`) — npm-published CLI
 - **`apps/server`** — Inbound SMTP + HTTP API (in-memory storage)
 - **`apps/web`** — Placeholder landing page
 - **`packages/shared`** — Shared TypeScript API types
