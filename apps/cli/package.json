@@ -1,0 +1,27 @@
+{
+  "name": "qack",
+  "version": "0.1.0",
+  "description": "Temporary email for CI/CD pipelines",
+  "type": "module",
+  "bin": {
+    "qack": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@qack/shared": "workspace:*",
+    "@qack/typescript-config": "workspace:*",
+    "@types/node": "^22.15.21",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3"
+  }
+}

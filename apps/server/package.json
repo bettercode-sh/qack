@@ -1,0 +1,27 @@
+{
+  "name": "@qack/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.4",
+    "@qack/shared": "workspace:*",
+    "hono": "^4.7.11",
+    "mailparser": "^3.7.3",
+    "smtp-server": "^3.14.0"
+  },
+  "devDependencies": {
+    "@qack/typescript-config": "workspace:*",
+    "@types/mailparser": "^3.4.5",
+    "@types/node": "^22.15.21",
+    "@types/smtp-server": "^3.5.10",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
