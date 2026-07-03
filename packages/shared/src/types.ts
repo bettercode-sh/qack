@@ -25,6 +25,8 @@ export interface Message extends MessageSummary {
 
 export interface CreateInboxRequest {
   name?: string;
+  /** Generate a human-looking local-part (e.g. jane.smith42) instead of random chars. */
+  realistic?: boolean;
 }
 
 /** API query parameters */

@@ -2,6 +2,7 @@
   "name": "@qack/server",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsc",
@@ -10,6 +11,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@faker-js/faker": "^10.5.0",
     "@hono/node-server": "^1.14.4",
     "@qack/shared": "workspace:*",
     "hono": "^4.7.11",

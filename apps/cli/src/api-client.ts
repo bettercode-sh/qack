@@ -1,5 +1,6 @@
 import type {
   ApiErrorBody,
+  CreateInboxRequest,
   CreateInboxResponse,
   GetMessageResponse,
   ListMessagesResponse,
@@ -55,11 +56,19 @@ function encodeAddress(address: string): string {
 export class ApiClient {
   constructor(private readonly baseUrl: string) {}
 
-  async createInbox(name?: string): Promise<CreateInboxResponse> {
+  async createInbox(input: CreateInboxRequest = {}): Promise<CreateInboxResponse> {
+    const body: CreateInboxRequest = {};
+    if (input.name) {
+      body.name = input.name;
+    }
+    if (input.realistic) {
+      body.realistic = true;
+    }
+
     const response = await fetch(`${this.baseUrl}/v1/inboxes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(name ? { name } : {}),
+      body: JSON.stringify(body),
     });
 
     return parseJsonResponse<CreateInboxResponse>(response);

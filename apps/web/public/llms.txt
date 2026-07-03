@@ -1,0 +1,208 @@
+# Qack.dev
+
+Qack.dev provides temporary email inboxes for CI/CD pipelines and automated tests. A developer creates a disposable `@qack.dev` inbox, points an app-under-test at that email address, and uses the `qack-mail` CLI or HTTP API to wait for and inspect inbound messages such as OTPs, verification links, password reset emails, and invitations.
+
+## Primary Use Case
+
+Use Qack when an automated test or deployment pipeline needs to receive email without using a real mailbox provider.
+
+Typical flow:
+
+```bash
+ADDR=$(npx qack-mail create --realistic)
+curl -X POST https://your-app.test/signup -d "email=$ADDR"
+BODY=$(npx qack-mail wait "$ADDR" --timeout 300)
+OTP=$(echo "$BODY" | grep -oE '[0-9]{6}' | head -1)
+```
+
+## CLI
+
+Package: `qack-mail`
+
+Default API base URL: `https://api.qack.dev`
+
+Configuration:
+
+- `QACK_API_URL`: overrides the default API URL.
+- `--api-url <url>`: per-command API URL override.
+- `--json`: output machine-readable JSON to stdout.
+
+Commands:
+
+- `qack-mail create [--name <name>] [--realistic]`: create an inbox. Without `--json`, prints only the inbox email address. Use `--realistic` to generate a human-looking local-part (for example `jane.smith42`) when signup flows reject obviously random disposable addresses.
+- `qack-mail list <address>`: list message summaries for an inbox.
+- `qack-mail get <address> <message-id> [--text|--html|--raw]`: fetch one full message.
+- `qack-mail wait <address> [--timeout <sec>] [--since <message-id>] [--text|--html|--raw]`: wait until a new message arrives.
+- `qack-mail delete <address>`: delete an inbox and all messages.
+
+Exit codes:
+
+- `0`: success.
+- `1`: error.
+- `2`: timeout from `wait`.
+
+## HTTP API
+
+The CLI calls a JSON HTTP API.
+
+Endpoints:
+
+- `POST /v1/inboxes`: create an inbox. Optional JSON body: `{ "name": "custom-local-part" }` or `{ "realistic": true }`.
+- `GET /v1/inboxes/:address/messages`: list messages for an inbox.
+- `GET /v1/inboxes/:address/messages/:id`: fetch one message.
+- `GET /v1/inboxes/:address/messages/wait?timeout=30&since=<id-or-time>`: long-poll for a new message.
+- `DELETE /v1/inboxes/:address`: delete an inbox.
+- `GET /healthz`: health check.
+
+Standard error body:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable message"
+  }
+}
+```
+
+## Data Shapes
+
+Inbox:
+
+```ts
+{
+  address: string;
+  createdAt: string;
+  expiresAt: string;
+}
+```
+
+Message summary:
+
+```ts
+{
+  id: string;
+  from: string;
+  subject: string;
+  receivedAt: string;
+}
+```
+
+Full message:
+
+```ts
+{
+  id: string;
+  from: string;
+  subject: string;
+  receivedAt: string;
+  to: string[];
+  text?: string;
+  html?: string;
+  headers: Record<string, string | string[]>;
+  raw: string;
+}
+```
+
+## GitHub Actions Example
+
+```yaml
+- name: Create test inbox
+  run: echo "TEST_EMAIL=$(npx qack-mail create --realistic)" >> $GITHUB_ENV
+
+- name: Trigger signup
+  run: curl -X POST https://myapp.com/signup -d "email=${{ env.TEST_EMAIL }}"
+
+- name: Wait for verification email and extract OTP
+  run: |
+    BODY=$(npx qack-mail wait "${{ env.TEST_EMAIL }}" --timeout 300)
+    OTP=$(echo "$BODY" | grep -oE '[0-9]{6}' | head -1)
+    echo "OTP=$OTP" >> $GITHUB_ENV
+```
+
+## Local Development
+
+Repository layout:
+
+- `apps/cli`: npm CLI package named `qack-mail`.
+- `apps/server`: inbound SMTP server plus HTTP API.
+- `apps/web`: landing page and static assets.
+- `packages/shared`: shared TypeScript API types.
+
+Commands:
+
+```bash
+pnpm install
+pnpm build
+pnpm typecheck
+pnpm --filter @qack/server dev
+```
+
+Local server defaults:
+
+- HTTP API: `http://localhost:8080`
+- SMTP: `localhost:2525`
+- Mail domain: `qack.dev`
+
+Use the local API from the CLI:
+
+```bash
+export QACK_API_URL=http://localhost:8080
+pnpm --filter qack-mail build
+node apps/cli/dist/index.js create
+```
+
+## Operational Model
+
+The hosted API at `https://api.qack.dev` runs the same open-source `@qack/server` as self-hosted deployments. The CLI defaults to the hosted API; set `QACK_API_URL` or `--api-url` for a private instance.
+
+The current server is a single Node process with in-memory storage. Inboxes and messages are not shared across instances and do not survive process restarts.
+
+Important constraints:
+
+- Run exactly one production machine unless external storage is added.
+- Inbound SMTP on port 25 requires appropriate hosting and DNS, such as a dedicated IPv4 address on Fly.io.
+- Point the domain MX record at the mail server.
+- Point the API hostname, normally `api.qack.dev`, at the HTTP server.
+- Inboxes expire with their messages. The default TTL is 60 minutes.
+- There is no authentication in v1, so self-hosted private deployments should restrict network access.
+
+Server environment variables:
+
+- `PORT`: HTTP API port. Default `8080`.
+- `SMTP_PORT`: SMTP listen port. Default `2525`.
+- `MAIL_DOMAIN`: accepted inbound mail domain. Default `qack.dev`.
+- `INBOX_TTL_MINUTES`: inbox lifetime. Default `60`.
+- `MAX_MESSAGE_BYTES`: max raw message size. Default `5242880`.
+
+## Agent Guidance
+
+When helping a developer use Qack:
+
+- Prefer the CLI for CI examples because it prints clean stdout and has stable exit codes.
+- Use `--json` when the caller needs structured data.
+- Use `wait` for OTPs and verification links.
+- Use `list` followed by `get` when a test needs a specific message.
+- Mention the in-memory single-machine constraint when discussing hosting or production reliability.
+- Use `create --realistic` when an app blocks random-looking disposable addresses.
+- Do not assume messages persist after TTL expiry or server restart.
+
+## Acceptable Use
+
+Qack is for automated testing of applications you own or are authorized to test. Do not use it for spam, phishing, harassment, or bypassing third-party fraud or abuse controls.
+
+- `--realistic` is for testing your own signup filters, not deceiving third-party services.
+- Do not send sensitive personal, financial, or health data to `@qack.dev` inboxes.
+- Hosted inboxes are unauthenticated: anyone with the address can read messages.
+
+Full policy: https://github.com/bettercode-sh/qack/blob/main/ACCEPTABLE_USE.md
+
+## Security
+
+Report vulnerabilities privately — do not file public issues for security bugs.
+
+Policy: https://github.com/bettercode-sh/qack/blob/main/SECURITY.md
+
+## License
+
+MIT — https://github.com/bettercode-sh/qack/blob/main/LICENSE

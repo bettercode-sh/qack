@@ -1,6 +1,15 @@
 {
   "name": "qack-monorepo",
   "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bettercode-sh/qack.git"
+  },
+  "homepage": "https://qack.dev",
+  "bugs": {
+    "url": "https://github.com/bettercode-sh/qack/issues"
+  },
   "packageManager": "pnpm@10.33.2",
   "scripts": {
     "build": "turbo run build",

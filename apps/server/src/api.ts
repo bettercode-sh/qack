@@ -48,7 +48,10 @@ export function createApiApp(store: Store): Hono {
     }
 
     try {
-      const inbox: CreateInboxResponse = store.createInbox(body.name);
+      const inbox: CreateInboxResponse = store.createInbox({
+        name: body.name,
+        realistic: body.realistic,
+      });
       return jsonResponse(inbox, 201);
     } catch (error) {
       if (error instanceof StoreError) {

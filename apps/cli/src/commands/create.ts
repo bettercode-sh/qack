@@ -7,10 +7,20 @@ export function registerCreateCommand(program: Command): void {
     .command("create")
     .description("Create a temporary inbox")
     .option("--name <name>", "Custom local-part for the inbox address")
-    .action(async function (this: Command, options: { name?: string }) {
+    .option(
+      "--realistic",
+      "Generate a human-looking address (e.g. jane.smith42) to pass stricter signup filters",
+    )
+    .action(async function (
+      this: Command,
+      options: { name?: string; realistic?: boolean },
+    ) {
       try {
         const client = createClient(this);
-        const inbox = await client.createInbox(options.name);
+        const inbox = await client.createInbox({
+          name: options.name,
+          realistic: options.realistic,
+        });
         const { json } = getGlobalOptions(this);
 
         if (json) {

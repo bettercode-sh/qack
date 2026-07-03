@@ -2,6 +2,16 @@
   "name": "qack-mail",
   "version": "0.1.0",
   "description": "Temporary email for CI/CD pipelines",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bettercode-sh/qack.git",
+    "directory": "apps/cli"
+  },
+  "homepage": "https://qack.dev",
+  "bugs": {
+    "url": "https://github.com/bettercode-sh/qack/issues"
+  },
   "type": "module",
   "bin": {
     "qack-mail": "./dist/index.js"

@@ -1,7 +1,8 @@
 import { EventEmitter } from "node:events";
 import { randomBytes } from "node:crypto";
-import type { Inbox, Message, MessageSummary } from "@qack/shared";
+import type { CreateInboxRequest, Inbox, Message, MessageSummary } from "@qack/shared";
 import type { ServerConfig } from "./config.js";
+import { generateRealisticLocalPart } from "./faker-local-part.js";
 
 const CUSTOM_NAME_RE = /^[a-z0-9-]{1,64}$/;
 const LOCAL_PART_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -73,8 +74,10 @@ export class Store {
     this.events.removeAllListeners();
   }
 
-  createInbox(name?: string): Inbox {
-    const localPart = name ? this.validateCustomName(name) : generateLocalPart();
+  createInbox(input: CreateInboxRequest = {}): Inbox {
+    const localPart = input.name
+      ? this.validateCustomName(input.name)
+      : this.generateUniqueLocalPart(input.realistic === true);
     const address = `${localPart}@${this.config.mailDomain}`;
 
     if (this.inboxes.has(address)) {
@@ -188,6 +191,20 @@ export class Store {
       );
     }
     return normalized;
+  }
+
+  private generateUniqueLocalPart(realistic: boolean): string {
+    const generator = realistic ? generateRealisticLocalPart : generateLocalPart;
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const candidate = generator();
+      const address = `${candidate}@${this.config.mailDomain}`;
+      if (!this.inboxes.has(address)) {
+        return candidate;
+      }
+    }
+
+    throw new StoreError("CONFLICT", "Could not generate a unique inbox name");
   }
 
   private getLiveRecord(address: string): InboxRecord | null {

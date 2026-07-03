@@ -1,6 +1,8 @@
 # @qack/server
 
-Inbound SMTP + HTTP API for Qack.dev. One Node process accepts mail for `*@qack.dev` and exposes the REST API the `qack` CLI uses.
+Inbound SMTP + HTTP API for Qack.dev. One Node process accepts mail for `*@your-domain` and exposes the REST API the `qack-mail` CLI uses.
+
+This is the same server that powers the hosted API at **`https://api.qack.dev`**. Self-host when you need a private network, custom domain, or stricter access control.
 
 ## Local development
 
@@ -38,12 +40,14 @@ swaks --to inbox@qack.dev --from sender@example.com \
 From the **repository root**, pass `--config apps/server/fly.toml` on every `fly` command (or use `-a qack-server`):
 
 ```bash
-fly launch --no-deploy --config apps/server/fly.toml
-fly deploy . --config apps/server/fly.toml
+fly launch --no-deploy --config apps/server/fly.toml --ha=false
+fly deploy . --config apps/server/fly.toml --ha=false
 fly ips allocate-v4 --config apps/server/fly.toml
 fly certs add api.qack.dev --config apps/server/fly.toml
 fly certs show api.qack.dev --config apps/server/fly.toml
 ```
+
+**Always use `--ha=false` on deploy.** Fly defaults to two machines for redundancy, but this app stores state in memory — a second machine means `create` and `wait` can hit different instances and you'll get `NOT_FOUND`. If you already have two machines, run `fly scale count 1 -a qack-server --yes`.
 
 `fly.toml` lives in `apps/server/`, so `dockerfile = 'Dockerfile'` resolves to `apps/server/Dockerfile`. The `.` on deploy is required so the Docker build can see the root `package.json`, `pnpm-lock.yaml`, and workspace packages.
 
